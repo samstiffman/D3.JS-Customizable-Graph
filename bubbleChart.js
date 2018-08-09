@@ -63,7 +63,7 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
     throw "yField variable not set"
   }
 
-  d3.csv(CSVpath, function(data) {
+  d3.csv(CSVpath).then(function(data) {
     /* Read CSV file */
 
     //Default max and min values need to be outside the range of the data
@@ -102,7 +102,7 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
 
     //Remove all the nulls from the array
     arrayOfValues = removeNulls(arrayOfValues);
-    let tooltip = d3.select("#scatter-bubble-chart")
+    let tooltip = d3.select("body")
       .append("div")
       .style("position", "absolute")
       .style("opacity", "0")
