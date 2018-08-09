@@ -1,7 +1,7 @@
 /**
  * @file d3.js Customizeable Bubble Chart
  * @author Sam Stiffman <samstiffman@gmail.com>
- * @version 1.1
+ * @version 1.11
  * @requires http://d3js.org/d3.v5.min.js
  */
 
@@ -124,12 +124,12 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
         size = chooseScale(sizeScaleType).domain([minValSize,maxValSize]).range(sizeScale),
         xScale = chooseScale(xScaleType),
         yScale = chooseScale(yScaleType);
-    if(xRange){
+    if(Array.isArray(xRange)){
       xScale = xScale.domain(xRange).range([0, w]);
     }else{
       xScale = xScale.domain([ minValX, maxValX ]).range([0, w]);
     }
-    if(yRange){
+    if(Array.isArray(yRange)){
       yScale = yScale.domain(yRange).range([h, 0]);
     }else{
       yScale = yScale.domain([ minValY, maxValY ]).range([h, 0]);
