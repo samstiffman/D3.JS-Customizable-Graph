@@ -1,7 +1,7 @@
 /**
  * @file d3.js Customizeable Bubble Chart
  * @author Sam Stiffman <samstiffman@gmail.com>
- * @version 1.11
+ * @version 1.1
  * @requires http://d3js.org/d3.v5.min.js
  */
 
@@ -65,40 +65,31 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
 
   d3.csv(CSVpath).then(function(data) {
     /* Read CSV file */
-
-    //Default max and min values need to be outside the range of the data
-    let maxValX = Number.MIN_VALUE, minValX = Number.MAX_VALUE,
-        maxValY = Number.MIN_VALUE, minValY = Number.MAX_VALUE,
-        maxValSize = Number.MIN_VALUE, minValSize = Number.MAX_VALUE,
-        maxValColor = Number.MIN_VALUE, minValColor = Number.MIN_VALUE;
-
     let arrayOfValues = new Array();
-
-
     for (let i=0; i < data.length; i++) {
       //Set NaN data to null so it can be eliminated later
       if(isNaN(data[i][xField]) ||
        isNaN(data[i][yField]) ||
-       isNaN(data[i][sizeField]) ||
-       isNaN(data[i][colorField])){
+       isNaN(data[i][sizeField])){
+         console.log("check your fields: " + data[i] + " array at index " + i + " set to null")
         arrayOfValues[i] = null;
         continue;
       }
       //Ternary statement to set label value to "" if the field is undefined/false/null
       arrayOfValues[i] = { label:(data[i][nameField]?data[i][nameField]:""),
        x: Number(data[i][xField]), y: Number(data[i][yField])
-       , color: Number(data[i][colorField]), size: Number(data[i][sizeField])};
-
-      maxValX = Math.max(maxValX, data[i][xField]);
-      maxValY = Math.max(maxValY, data[i][yField]);
-      minValX = Math.min(minValX, data[i][xField]);
-      minValY = Math.min(minValY, data[i][yField]);
-
-      maxValSize = Math.max(maxValSize, data[i][sizeField]);
-      minValSize = Math.min(minValSize, data[i][sizeField]);
-      maxValColor = Math.max(maxValColor, data[i][colorField]);
-      minValColor = Math.min(minValColor, data[i][colorField]);
+       , color: data[i][colorField], size: Number(data[i][sizeField])};
     }
+
+    let maxValX = Math.max(...arrayOfValues.map(val => val.x));
+    let maxValY = Math.max(...arrayOfValues.map(val => val.x));
+    let minValX = Math.min(...arrayOfValues.map(val => val.y));
+    let minValY = Math.min(...arrayOfValues.map(val => val.y));
+
+    let maxValSize = Math.max(...arrayOfValues.map(val => val.size));
+    let minValSize = Math.min(...arrayOfValues.map(val => val.size));
+    let maxValColor = Math.max(...arrayOfValues.map(val => Number(val.color)));
+    let minValColor = Math.min(...arrayOfValues.map(val => Number(val.color)));
 
     //Remove all the nulls from the array
     arrayOfValues = removeNulls(arrayOfValues);
@@ -135,13 +126,20 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
       yScale = yScale.domain([ minValY, maxValY ]).range([h, 0]);
     }
 
+    //Discreet color mapping, colorMapping must not be null, and can only be undefined if the values of the color column are colors
+    if(discreetColorScale){
+      if(colorMapping){
+        color = d3.scaleOrdinal().domain(colorMapping).range(colorScale);
+      }else{
+        color = d3.scaleOrdinal().domain(arrayOfValues.map(val => val.color)).range(arrayOfValues.map(val => val.color))
 
-
-    //Discreet color mapping, colorMapping must not be null or undefined
-    if(discreetColorScale && colorMapping){
-      color = d3.scaleOrdinal().domain(colorMapping).range(colorScale);
+      }
     }else{
-      color = chooseScale(colorScaleType).domain([minValColor, maxValColor]).range(colorScale);
+      if(Number(maxValColor)){
+        color = chooseScale(colorScaleType).domain([maxValColor, minValColor]).range(colorScale);
+      }else{
+        color = chooseScale(colorScaleType).domain(arrayOfValues.map(val => colorHexToNumber(val.color))).range(colorScale);
+      }
     }
 
     let graph = d3.select("body")
@@ -196,6 +194,7 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
       .data(arrayOfValues)
       .enter().append("g")
       .attr("class", "node")
+
     /* Add bubbles to graph
     * cx is the bubble x value
     * cy is the bubble y value
@@ -264,5 +263,16 @@ function chooseScale(scalingParameter){
       return d3.scaleSqrt();
     default:
       return d3.scaleLinear();
+  }
+}
+
+function colorHexToNumber(color){
+  let tempC = color.replace(/#/g, '');
+  tempC = parseInt(tempC, 16);
+  if(isNaN(tempC)){
+    throw "Color column could not be made into a number";
+  }
+  else{
+    return tempC
   }
 }
