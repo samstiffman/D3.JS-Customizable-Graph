@@ -1,10 +1,9 @@
 /**
  * @file d3.js Customizeable Bubble Chart
  * @author Sam Stiffman <samstiffman@gmail.com>
- * @version 1.1
+ * @version 1.25
  * @requires http://d3js.org/d3.v5.min.js
  */
-
 
 
 /**
@@ -21,7 +20,7 @@
   * @param {String} nameField - The CSV field used for bubble labels @default ""
   * @param {String} colorField - The CSV field used for choosing colors @default yField
   * @param {String} sizeField - The CSV field used for choosing bubble size @default yField
-  * @param {color[]} colorScale - The scale used to specify bubble colors can be hex or literal CSS colors @default ["red", "blue"]
+  * @param {color[]} colorScale - The scale used to specify bubble colors can be hex or literal CSS colors @default '["red", "blue"]'
   * @param {int[]} sizeScale - The scale used to specify range of bubble sizes in pixels @default [5,30]
   * @param {boolean} showLabels - Show the names of each bubble as a floating tag @default false
   *
@@ -38,21 +37,21 @@
   * These scales are so that your data will fit on the graph, most data will be the default linear scale
   * You can specify: (Linear, Log, Sqrt, or Power) these correspond to the built in d3 functions
   * (scaleLinear, scaleLog, scaleSqrt, and scalePow)
-  * @param {xScaleType} @default "linear"
-  * @param {yScaleType} @default "linear"
-  * @param {colorScale} @default "linear"
-  * @param {sizeScale} @default  "linear"
+  * @param {String} xScaleType @default "linear"
+  * @param {String} yScaleType @default "linear"
+  * @param {String} colorScale @default "linear"
+  * @param {String}  sizeScale @default  "linear"
+  * @param {int} powScaleExponent @default 2 Integer that specifies exponent of the power scale @default 2
   *
-  *
-  * @example
-  * bubbleChart('MyData.csv', "X_Value", "Y_Value", {nameField: "Country_Name", xScaleType: "power", yScaleType: "sqrt"});
+  * @example using some parameters
+  * bubbleChart('MyData.csv', "X_Value", "Y_Value", {nameField: "Country_Name", xScaleType: "power", powScaleExponent: 2, yScaleType: "sqrt"});
   * @example This is the simplest possible example
   * bubbleChart('MyData.csv', "x", "y")
   */
 function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
   colorField=yField, sizeField=yField,
   colorScale=["red","blue"], sizeScale=[5,30], showLabels=false, discreetColorScale=false,
-  colorMapping, xScaleType="linear", yScaleType="linear", colorScaleType="linear", sizeScaleType="linear"}={}){
+  colorMapping, xScaleType="linear", yScaleType="linear", powScaleExponent, colorScaleType="linear", sizeScaleType="linear"}={}){
 
   //Throws exceptions if missing required parameters
   if(!CSVpath){
@@ -65,35 +64,37 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
 
   d3.csv(CSVpath).then(function(data) {
     /* Read CSV file */
-    let arrayOfValues = new Array();
-    for (let i=0; i < data.length; i++) {
+    let arrayOfValues = [];
+    const length = data.length;
+
+    for (let i=0; i < length; i++) {
       //Set NaN data to null so it can be eliminated later
       if(isNaN(data[i][xField]) ||
        isNaN(data[i][yField]) ||
        isNaN(data[i][sizeField])){
-         console.log("check your fields: " + data[i] + " array at index " + i + " set to null")
+         console.log("check your fields: " + data[i] + "\n Array at index " + i + " set to null")
         arrayOfValues[i] = null;
         continue;
       }
       //Ternary statement to set label value to "" if the field is undefined/false/null
       arrayOfValues[i] = { label:(data[i][nameField]?data[i][nameField]:""),
-       x: Number(data[i][xField]), y: Number(data[i][yField])
-       , color: data[i][colorField], size: Number(data[i][sizeField])};
+       x: Number(data[i][xField]), y: Number(data[i][yField]),
+        color: data[i][colorField], size: Number(data[i][sizeField])};
     }
 
-    let maxValX = Math.max(...arrayOfValues.map(val => val.x));
-    let maxValY = Math.max(...arrayOfValues.map(val => val.x));
-    let minValX = Math.min(...arrayOfValues.map(val => val.y));
-    let minValY = Math.min(...arrayOfValues.map(val => val.y));
+    const maxValX = Math.max(...arrayOfValues.map(val => val.x));
+    const maxValY = Math.max(...arrayOfValues.map(val => val.x));
+    const minValX = Math.min(...arrayOfValues.map(val => val.y));
+    const minValY = Math.min(...arrayOfValues.map(val => val.y));
 
-    let maxValSize = Math.max(...arrayOfValues.map(val => val.size));
-    let minValSize = Math.min(...arrayOfValues.map(val => val.size));
-    let maxValColor = Math.max(...arrayOfValues.map(val => Number(val.color)));
-    let minValColor = Math.min(...arrayOfValues.map(val => Number(val.color)));
+    const maxValSize = Math.max(...arrayOfValues.map(val => val.size));
+    const minValSize = Math.min(...arrayOfValues.map(val => val.size));
+    const maxValColor = Math.max(...arrayOfValues.map(val => Number(val.color)));
+    const minValColor = Math.min(...arrayOfValues.map(val => Number(val.color)));
 
     //Remove all the nulls from the array
     arrayOfValues = removeNulls(arrayOfValues);
-    let tooltip = d3.select("body")
+    const tooltip = d3.select("body")
       .append("div")
       .style("position", "absolute")
       .style("opacity", "0")
@@ -118,11 +119,13 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
     if(Array.isArray(xRange)){
       xScale = xScale.domain(xRange).range([0, w]);
     }else{
+      if(xRange){console.log("User provided xRange is not an array")}
       xScale = xScale.domain([ minValX, maxValX ]).range([0, w]);
     }
     if(Array.isArray(yRange)){
       yScale = yScale.domain(yRange).range([h, 0]);
     }else{
+      if(yRange){console.log("User provided yRange is not an array")}
       yScale = yScale.domain([ minValY, maxValY ]).range([h, 0]);
     }
 
@@ -132,22 +135,22 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
         color = d3.scaleOrdinal().domain(colorMapping).range(colorScale);
       }else{
         color = d3.scaleOrdinal().domain(arrayOfValues.map(val => val.color)).range(arrayOfValues.map(val => val.color))
-
       }
     }else{
+      color = chooseScale(colorScaleType);
       if(Number(maxValColor)){
-        color = chooseScale(colorScaleType).domain([maxValColor, minValColor]).range(colorScale);
+        color = color.domain([maxValColor, minValColor]).range(colorScale);
       }else{
-        color = chooseScale(colorScaleType).domain(arrayOfValues.map(val => colorHexToNumber(val.color))).range(colorScale);
+        color = color.domain(arrayOfValues.map(val => colorHexToNumber(val.color))).range(colorScale);
       }
     }
 
     let graph = d3.select("body")
       .data(arrayOfValues)
-    .append("svg:svg")
+    .append("svg:svg") //Full Graph
       .attr("width", w + p * 2)
       .attr("height", h + p * 2)
-    .append("svg:g")
+    .append("svg:g") //Container for all of the grpah elements
       .attr("transform", "translate(" + p + "," + p + ")");
 
 
@@ -157,14 +160,14 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
       .attr("class", "rule");
 
     // Draw grid lines
-    rules.append("line")
+    rules.append("svg:line")
       .style("stroke", "black")
       .attr("x1", xScale)
       .attr("x2", xScale)
       .attr("y1", 0)
       .attr("y2", h);
 
-    rules.append("line")
+    rules.append("svg:line")
       .data(yScale.ticks(10))
       .style("stroke", "black")
       .attr("y1", yScale)
@@ -192,7 +195,7 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
     // Add Svg container, svg:g to bubbles
     let bubbles = graph.selectAll("circle.line")
       .data(arrayOfValues)
-      .enter().append("g")
+      .enter().append("svg:g")
       .attr("class", "node")
 
     /* Add bubbles to graph
@@ -201,13 +204,12 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
     * r is the bubble radius
     * fill is the color of the bubble
     */
-    bubbles.append("circle")
+    bubbles.append("svg:circle")
       .attr("class", "line")
       .attr("fill", function(d) { return color(d.color);})
       .attr("cx", function(d) { return xScale(d.x);})
       .attr("cy", function(d) { return yScale(d.y);})
-      .attr("r", function(d) { return size(d.size);
-      })
+      .attr("r", function(d) { return size(d.size);})
       .on("mouseover", function(d){ //Show tooltip when mouse enters
        tooltip.html(d.label +"<br>"+ xField + ": " +d.x+"<br>" + yField + ": "+ d.y);
         //Values displayed on the Tooltip
@@ -220,8 +222,6 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
 
   //Circle labels
   if(showLabels){
-
-
     bubbles.append("text")
       .attr("text-anchor", "middle")
       .text(function(d){return d.label;})
@@ -231,8 +231,6 @@ function bubbleChart(CSVpath, xField, yField, {xRange, yRange, nameField=null,
       .attr("font-size", "14px")
       .attr("fill", "black")
       .attr("dy", ".5em");
-
-
     }
 });//d3.csv End
 }//Function End
@@ -245,10 +243,10 @@ function removeNulls(array){
     }
   }
   return array;
-};
+}
 
 // Function for making scaling parameters work without too many conditional statements
-function chooseScale(scalingParameter){
+function chooseScale(scalingParameter, exponent){
   switch(scalingParameter.toLowerCase()){
     case "logarithm":
     case "log":
@@ -257,7 +255,10 @@ function chooseScale(scalingParameter){
     case "pow":
     case "power":
     case "p":
-      return d3.scalePow();
+      if(exponent){
+        return d3.scalePow().exponent(exponent);
+      }
+      return d3.scalePow().exponent(2);
     case "sqrt":
     case "s":
       return d3.scaleSqrt();
